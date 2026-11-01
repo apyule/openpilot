@@ -312,8 +312,18 @@ static safety_config hyundai_init(uint16_t param) {
     HYUNDAI_COMMON_TX_MSGS(2)
   };
 
+  static const CanMsg HYUNDAI_CAMERA_SCC_ISLA_TX_MSGS[] = {
+    HYUNDAI_COMMON_TX_MSGS(2)
+    {0x53E, 0, 8, .check_relay = true}, // LKAS12 Bus 0
+  };
+
   static const CanMsg HYUNDAI_CAMERA_SCC_LONG_TX_MSGS[] = {
     HYUNDAI_LONG_COMMON_TX_MSGS(2)
+  };
+
+  static const CanMsg HYUNDAI_CAMERA_SCC_LONG_ISLA_TX_MSGS[] = {
+    HYUNDAI_LONG_COMMON_TX_MSGS(2)
+    {0x53E, 0, 8, .check_relay = true}, // LKAS12 Bus 0
   };
 
   static const CanMsg HYUNDAI_LONG_ESCC_TX_MSGS[] = {
@@ -362,7 +372,11 @@ static safety_config hyundai_init(uint16_t param) {
     if (hyundai_escc) {
       SET_TX_MSGS(HYUNDAI_LONG_ESCC_TX_MSGS, ret);
     } else if (hyundai_camera_scc) {
-      SET_TX_MSGS(HYUNDAI_CAMERA_SCC_LONG_TX_MSGS, ret);
+      if (hyundai_mute_isla_lkas12) {
+        SET_TX_MSGS(HYUNDAI_CAMERA_SCC_LONG_ISLA_TX_MSGS, ret);
+      } else {
+        SET_TX_MSGS(HYUNDAI_CAMERA_SCC_LONG_TX_MSGS, ret);
+      }
     } else {
       SET_TX_MSGS(HYUNDAI_LONG_TX_MSGS, ret);
     }
@@ -375,7 +389,11 @@ static safety_config hyundai_init(uint16_t param) {
       HYUNDAI_LDA_BUTTON_ADDR_CHECK
     };
 
-    ret = BUILD_SAFETY_CFG(hyundai_cam_scc_rx_checks, HYUNDAI_CAMERA_SCC_TX_MSGS);
+    if (hyundai_mute_isla_lkas12) {
+      ret = BUILD_SAFETY_CFG(hyundai_cam_scc_rx_checks, HYUNDAI_CAMERA_SCC_ISLA_TX_MSGS);
+    } else {
+      ret = BUILD_SAFETY_CFG(hyundai_cam_scc_rx_checks, HYUNDAI_CAMERA_SCC_TX_MSGS);
+    }
   } else {
     static RxCheck hyundai_rx_checks[] = {
        HYUNDAI_COMMON_RX_CHECKS(false)

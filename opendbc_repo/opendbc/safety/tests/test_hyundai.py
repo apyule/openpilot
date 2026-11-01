@@ -296,6 +296,20 @@ class TestHyundaiSafetyCameraSCC(TestHyundaiSafety):
         self.assertEqual(should_turn_acc_main_on, self.safety.get_acc_main_on())
 
 
+class TestHyundaiSafetyCameraSCCMuteISLA(TestHyundaiSafetyCameraSCC):
+  TX_MSGS = [[0x340, 0], [0x4F1, 2], [0x485, 0], [0x53E, 0]]
+  FWD_BLACKLISTED_ADDRS = {2: [0x340, 0x485, 0x53E]}
+  RELAY_MALFUNCTION_ADDRS = {0: (0x340, 0x485, 0x53E)}
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_current_safety_param_sp(HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAMERA_SCC)
+    self.safety.init_tests()
+    self.SAFETY_PARAM_SP = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12
+
+
 @parameterized_class(LDA_BUTTON)
 class TestHyundaiSafetyFCEV(TestHyundaiSafety):
   @classmethod
@@ -443,6 +457,19 @@ class TestHyundaiLongitudinalSafetyCameraSCC(HyundaiLongitudinalBase, TestHyunda
 
   def test_disabled_ecu_alive(self):
     pass
+
+
+class TestHyundaiLongitudinalSafetyCameraSCCMuteISLA(TestHyundaiLongitudinalSafetyCameraSCC):
+  TX_MSGS = [[0x340, 0], [0x4F1, 2], [0x485, 0], [0x420, 0], [0x421, 0], [0x50A, 0], [0x389, 0], [0x4A2, 0], [0x53E, 0]]
+  FWD_BLACKLISTED_ADDRS = {2: [0x340, 0x485, 0x420, 0x421, 0x50A, 0x389, 0x53E]}
+  RELAY_MALFUNCTION_ADDRS = {0: (0x340, 0x485, 0x421, 0x420, 0x50A, 0x389, 0x53E)}
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_generated")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_current_safety_param_sp(HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC)
+    self.safety.init_tests()
 
 
 @parameterized_class(LDA_BUTTON)

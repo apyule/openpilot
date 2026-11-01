@@ -64,6 +64,7 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     self.buttons_counter = 0
 
     self.cruise_info = {}
+    self.lkas12 = {}
 
     # On some cars, CLU15->CF_Clu_VehicleSpeed can oscillate faster than the dash updates. Sample at 5 Hz
     self.cluster_speed = 0
@@ -187,6 +188,8 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     # save the entire LKAS11 and CLU11
     self.lkas11 = copy.copy(cp_cam.vl["LKAS11"])
     self.clu11 = copy.copy(cp.vl["CLU11"])
+    if (self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12) and cp_cam.ts_nanos["LKAS12"]["CF_Lkas_TsrSpeed_Display_Clu"] != 0:
+      self.lkas12 = copy.copy(cp_cam.vl["LKAS12"])
     self.steer_state = cp.vl["MDPS12"]["CF_Mdps_ToiActive"]  # 0 NOT ACTIVE, 1 ACTIVE
     prev_cruise_buttons = self.cruise_buttons[-1]
     prev_main_buttons = self.main_buttons[-1]
@@ -332,7 +335,8 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     if CP.flags & HyundaiFlags.CANFD:
       return self.get_can_parsers_canfd(CP)
 
+    cam_msgs = [("LKAS12", float("nan"))] if CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12 else []
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 0),
-      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 2),
+      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_msgs, 2),
     }

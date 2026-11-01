@@ -132,6 +132,20 @@ def create_lfahda_mfc(packer, enabled, lfa_icon):
   return packer.make_can_msg("LFAHDA_MFC", 0, values)
 
 
+def create_lkas12(packer, lkas12, mute_isla):
+  values = dict(lkas12)
+  if mute_isla:
+    # Switch from ISLA (audible Warning/Assist) to SLIF/ISLW (visual-only speed limit display)
+    values["CF_Lkas_TsrSlifOpt"] = 2
+    values["ISLA_OptUsmSta"] = 0
+    values["ISLA_SpdwOffst"] = 0
+    values["ISLA_SpdChgReq"] = 0
+    # Clamp overspeed warning from 3 (visual flash + chime) to 1 (silent visual flash)
+    if values["ISLA_SpdWrn"] > 1:
+      values["ISLA_SpdWrn"] = 1
+  return packer.make_can_msg("LKAS12", 0, values)
+
+
 def create_acc_commands(packer, enabled, accel, upper_jerk, idx, lead_data: CanLeadData,
                         hud_control, set_speed, stopping, long_override, use_fca, CP,
                         main_cruise_enabled, tuning, ESCC: EnhancedSmartCruiseControl | None = None):

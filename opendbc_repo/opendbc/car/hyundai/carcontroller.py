@@ -13,6 +13,7 @@ from opendbc.sunnypilot.car.hyundai.icbm import IntelligentCruiseButtonManagemen
 from opendbc.sunnypilot.car.hyundai.longitudinal.controller import LongitudinalController
 from opendbc.sunnypilot.car.hyundai.lead_data_ext import LeadDataCarController
 from opendbc.sunnypilot.car.hyundai.mads import MadsCarController
+from opendbc.sunnypilot.car.hyundai.values import HyundaiFlagsSP
 
 VisualAlert = structs.CarControl.HUDControl.VisualAlert
 LongCtrlState = structs.CarControl.Actuators.LongControlState
@@ -134,7 +135,7 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
       torque_fault = CC.latActive and not apply_steer_req
 
       can_sends.extend(self.create_can_msgs(apply_steer_req, apply_torque, torque_fault, set_speed_in_units, accel,
-                                            stopping, hud_control, actuators, CS, CC))
+                                            stopping, hud_control, actuators, CS, CC, CC_SP))
 
     # Intelligent Cruise Button Management
     can_sends.extend(IntelligentCruiseButtonManagementInterface.update(self, CS, CC_SP, self.packer, self.frame, self.last_button_frame, self.CAN))
@@ -147,7 +148,7 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     self.frame += 1
     return new_actuators, can_sends
 
-  def create_can_msgs(self, apply_steer_req, apply_torque, torque_fault, set_speed_in_units, accel, stopping, hud_control, actuators, CS, CC):
+  def create_can_msgs(self, apply_steer_req, apply_torque, torque_fault, set_speed_in_units, accel, stopping, hud_control, actuators, CS, CC, CC_SP):
     can_sends = []
 
     # HUD messages
@@ -184,6 +185,11 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     # 20 Hz LFA MFA message
     if self.frame % 5 == 0 and self.CP.flags & HyundaiFlags.SEND_LFA.value:
       can_sends.append(hyundaican.create_lfahda_mfc(self.packer, CC.enabled, self.lfa_icon))
+
+    # 10 Hz LKAS12 message (forward and mute ISLA cluster chime when MADS or cruise is active)
+    if self.frame % 10 == 0 and (self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12) and CS.lkas12:
+      mute_isla = bool(CC.enabled or CC.latActive or CC_SP.mads.enabled)
+      can_sends.append(hyundaican.create_lkas12(self.packer, CS.lkas12, mute_isla))
 
     # 5 Hz ACC options
     if self.frame % 20 == 0 and self.CP.openpilotLongitudinalControl:
