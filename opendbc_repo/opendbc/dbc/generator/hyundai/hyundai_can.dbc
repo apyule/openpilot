@@ -1009,7 +1009,9 @@ BO_ 1342 LKAS12: 8 LDWS_LKAS
  SG_ ISLA_OptUsmSta : 34|3@1+ (1,0) [0|7] "" CLU
  SG_ CF_LkasDawStatus : 40|3@1+ (1,0) [0|7] "" CLU
  SG_ CF_Lkas_Daw_USM : 37|3@1+ (1,0) [0|7] "" CLU
- SG_ CF_LkasDawReserved : 43|5@1+ (1,0) [0|31] "" XXX
+ SG_ CF_LkasDawReserved1 : 43|1@1+ (1,0) [0|1] "" XXX
+ SG_ CF_Lkas_DawWarn : 44|1@1+ (1,0) [0|1] "" CLU
+ SG_ CF_LkasDawReserved2 : 45|3@1+ (1,0) [0|7] "" XXX
  SG_ ISLA_SpdwOffst : 48|8@1+ (1,0) [0|255] "" CLU
  SG_ ISLA_SwIgnoreReq : 56|2@1+ (1,0) [0|3] "" CLU
  SG_ ISLA_SpdChgReq : 58|2@1+ (1,0) [0|3] "" CLU

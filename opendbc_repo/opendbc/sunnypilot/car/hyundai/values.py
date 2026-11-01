@@ -33,3 +33,4 @@ class HyundaiFlagsSP(IntFlag):
   SPEED_LIMIT_AVAILABLE = 2 ** 9  # platforms with speed limit data available
   HAS_LKAS12 = 2 ** 10
   MUTE_ISLA_LKAS12 = 2 ** 11
+  SUPPRESS_DAW_LKAS12 = 2 ** 12

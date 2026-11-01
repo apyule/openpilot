@@ -11,7 +11,7 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
                   torque_fault, lkas11, sys_warning, sys_state, enabled,
                   left_lane, right_lane,
                   left_lane_depart, right_lane_depart,
-                  lkas_icon):
+                  lkas_icon, suppress_daw=False):
   values = {s: lkas11[s] for s in [
     "CF_Lkas_LdwsActivemode",
     "CF_Lkas_LdwsSysState",
@@ -85,6 +85,9 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
     # Genesis and Optima fault when forwarding while engaged
     values["CF_Lkas_LdwsActivemode"] = 2
 
+  if suppress_daw and values["CF_Lkas_FcwCollisionWarning"] == 0:
+    values["CF_Lkas_FcwBasReq"] = 0
+
   dat = packer.make_can_msg("LKAS11", 0, values)[1]
 
   if CP.flags & HyundaiFlags.CHECKSUM_CRC8:
@@ -132,7 +135,7 @@ def create_lfahda_mfc(packer, enabled, lfa_icon):
   return packer.make_can_msg("LFAHDA_MFC", 0, values)
 
 
-def create_lkas12(packer, lkas12, mute_isla):
+def create_lkas12(packer, lkas12, mute_isla, suppress_daw=False):
   values = dict(lkas12)
   if mute_isla:
     # Switch from ISLA (audible Warning/Assist) to SLIF/ISLW (visual-only speed limit display)
@@ -143,6 +146,13 @@ def create_lkas12(packer, lkas12, mute_isla):
     # Clamp overspeed warning from 3 (visual flash + chime) to 1 (silent visual flash)
     if values["ISLA_SpdWrn"] > 1:
       values["ISLA_SpdWrn"] = 1
+  if suppress_daw:
+    # Keep cluster DAW attention level at 5/5 and clear "Consider taking a break" popup/chime
+    if values["CF_LkasDawStatus"] != 0 or values["CF_Lkas_DawWarn"] != 0:
+      values["CF_LkasDawStatus"] = 5
+    values["CF_Lkas_DawWarn"] = 0
+    values["CF_LkasDawReserved1"] = 0
+    values["CF_LkasDawReserved2"] = 0
   return packer.make_can_msg("LKAS12", 0, values)
 
 

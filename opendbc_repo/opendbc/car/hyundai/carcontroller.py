@@ -74,6 +74,7 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     self.car_fingerprint = CP.carFingerprint
     self.last_button_frame = 0
     self.cancel_counter = 0
+    self.daw_warn_latched = False
 
   def update(self, CC, CC_SP, CS, now_nanos):
     EsccCarController.update(self, CS)
@@ -155,11 +156,22 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     sys_warning, sys_state, left_lane_warning, right_lane_warning = process_hud_alert(CC.enabled, self.car_fingerprint,
                                                                                       hud_control)
 
+    comma_active = bool(CC.enabled or CC.latActive or CC_SP.mads.enabled)
+    fcw_aeb_active = bool(CS.out.stockFcw or CS.out.stockAeb or CS.lkas11.get("CF_Lkas_FcwCollisionWarning", 0) != 0)
+    cam_daw_warn = bool(CS.lkas12.get("CF_Lkas_DawWarn", 0) != 0 or CS.lkas12.get("CF_LkasDawStatus", 0) >= 6 or
+                        (CS.lkas11.get("CF_Lkas_FcwBasReq", 0) != 0 and not fcw_aeb_active))
+    if comma_active and cam_daw_warn:
+      self.daw_warn_latched = True
+    elif not comma_active and not cam_daw_warn:
+      self.daw_warn_latched = False
+
+    suppress_daw = bool((self.CP_SP.flags & HyundaiFlagsSP.SUPPRESS_DAW_LKAS12) and (comma_active or self.daw_warn_latched))
+
     can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
                                               torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
                                               hud_control.leftLaneVisible, hud_control.rightLaneVisible,
                                               left_lane_warning, right_lane_warning,
-                                              self.lkas_icon))
+                                              self.lkas_icon, suppress_daw=(suppress_daw and not fcw_aeb_active)))
 
     # Button messages
     if not self.CP.openpilotLongitudinalControl:
@@ -186,10 +198,11 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     if self.frame % 5 == 0 and self.CP.flags & HyundaiFlags.SEND_LFA.value:
       can_sends.append(hyundaican.create_lfahda_mfc(self.packer, CC.enabled, self.lfa_icon))
 
-    # 10 Hz LKAS12 message (forward and mute ISLA cluster chime when MADS or cruise is active)
-    if self.frame % 10 == 0 and (self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12) and CS.lkas12:
-      mute_isla = bool(CC.enabled or CC.latActive or CC_SP.mads.enabled)
-      can_sends.append(hyundaican.create_lkas12(self.packer, CS.lkas12, mute_isla))
+    # 10 Hz LKAS12 message (forward and mute ISLA chime / suppress DAW drops when MADS or cruise is active)
+    lkas12_intercept = self.CP_SP.flags & (HyundaiFlagsSP.MUTE_ISLA_LKAS12 | HyundaiFlagsSP.SUPPRESS_DAW_LKAS12)
+    if self.frame % 10 == 0 and lkas12_intercept and CS.lkas12:
+      mute_isla = bool((self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12) and comma_active)
+      can_sends.append(hyundaican.create_lkas12(self.packer, CS.lkas12, mute_isla, suppress_daw))
 
     # 5 Hz ACC options
     if self.frame % 20 == 0 and self.CP.openpilotLongitudinalControl:
