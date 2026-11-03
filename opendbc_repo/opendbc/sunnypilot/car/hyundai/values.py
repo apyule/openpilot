@@ -15,6 +15,7 @@ class HyundaiSafetyFlagsSP:
   HAS_LDA_BUTTON = 4
   NON_SCC = 8
   MUTE_ISLA_LKAS12 = 16
+  MUTE_ISLA_42D = 32
 
 
 class HyundaiFlagsSP(IntFlag):
@@ -34,3 +35,4 @@ class HyundaiFlagsSP(IntFlag):
   HAS_LKAS12 = 2 ** 10
   MUTE_ISLA_LKAS12 = 2 ** 11
   SUPPRESS_DAW_LKAS12 = 2 ** 12
+  MUTE_ISLA_42D = 2 ** 13

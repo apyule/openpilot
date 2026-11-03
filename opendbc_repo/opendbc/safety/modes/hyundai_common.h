@@ -23,6 +23,7 @@ enum {
   HYUNDAI_PARAM_SP_HAS_LDA_BUTTON = 4,
   HYUNDAI_PARAM_SP_NON_SCC = 8,
   HYUNDAI_PARAM_SP_MUTE_ISLA_LKAS12 = 16,
+  HYUNDAI_PARAM_SP_MUTE_ISLA_42D = 32,
 };
 
 // common state
@@ -66,6 +67,9 @@ bool hyundai_non_scc = false;
 extern bool hyundai_mute_isla_lkas12;
 bool hyundai_mute_isla_lkas12 = false;
 
+extern bool hyundai_mute_isla_42d;
+bool hyundai_mute_isla_42d = false;
+
 static uint8_t hyundai_last_button_interaction;  // button messages since the user pressed an enable button
 
 static bool main_button_prev;
@@ -95,6 +99,7 @@ void hyundai_common_init(uint16_t param) {
   hyundai_has_lda_button = GET_FLAG(current_safety_param_sp, HYUNDAI_PARAM_SP_HAS_LDA_BUTTON);
   hyundai_non_scc = GET_FLAG(current_safety_param_sp, HYUNDAI_PARAM_SP_NON_SCC);
   hyundai_mute_isla_lkas12 = GET_FLAG(current_safety_param_sp, HYUNDAI_PARAM_SP_MUTE_ISLA_LKAS12);
+  hyundai_mute_isla_42d = GET_FLAG(current_safety_param_sp, HYUNDAI_PARAM_SP_MUTE_ISLA_42D);
 
   hyundai_last_button_interaction = HYUNDAI_PREV_BUTTON_SAMPLES;
 

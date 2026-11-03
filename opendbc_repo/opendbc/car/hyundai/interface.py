@@ -214,6 +214,9 @@ class CarInterface(CarInterfaceBase):
         if (stock_cp.flags & HyundaiFlags.CAMERA_SCC) and fingerprint[2][0x53E] == 8:
           ret.flags |= (HyundaiFlagsSP.MUTE_ISLA_LKAS12 | HyundaiFlagsSP.SUPPRESS_DAW_LKAS12).value
           ret.safetyParam |= HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12
+          if fingerprint[2].get(0x42D) == 8:
+            ret.flags |= HyundaiFlagsSP.MUTE_ISLA_42D.value
+            ret.safetyParam |= HyundaiSafetyFlagsSP.MUTE_ISLA_42D
 
     ret.intelligentCruiseButtonManagementAvailable = not (stock_cp.flags & HyundaiFlags.CANFD_ALT_BUTTONS)
 

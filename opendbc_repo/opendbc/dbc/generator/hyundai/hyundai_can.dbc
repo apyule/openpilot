@@ -997,6 +997,18 @@ BO_ 832 LKAS11: 8 LDWS_LKAS
  SG_ CF_Lkas_LdwsOpt_USM : 59|3@1+ (1.0,0.0) [0.0|7.0] ""  CLU,MDPS
  SG_ CF_Lkas_Unknown2 : 62|2@1+ (1.0,0.0) [0.0|1.0] "" XXX
 
+BO_ 1069 CAM_0x42d: 8 LDWS_LKAS
+ SG_ BYTE0_LOW : 0|6@1+ (1,0) [0|63] "" CLU
+ SG_ ISLA_Overspeed_Chime : 6|1@1+ (1,0) [0|1] "" CLU
+ SG_ ISLA_SpdChg_Chime : 7|1@1+ (1,0) [0|1] "" CLU
+ SG_ BYTE1 : 8|8@1+ (1,0) [0|255] "" XXX
+ SG_ BYTE2 : 16|8@1+ (1,0) [0|255] "" XXX
+ SG_ BYTE3 : 24|8@1+ (1,0) [0|255] "" XXX
+ SG_ BYTE4 : 32|8@1+ (1,0) [0|255] "" XXX
+ SG_ BYTE5 : 40|8@1+ (1,0) [0|255] "" XXX
+ SG_ BYTE6 : 48|8@1+ (1,0) [0|255] "" XXX
+ SG_ BYTE7 : 56|8@1+ (1,0) [0|255] "" XXX
+
 BO_ 1342 LKAS12: 8 LDWS_LKAS
  SG_ CF_Lkas_DawSysState : 0|8@1+ (1,0) [0|255] "" CLU
  SG_ CF_Lkas_TsrReserved1 : 8|2@1+ (1,0) [0|3] "" XXX

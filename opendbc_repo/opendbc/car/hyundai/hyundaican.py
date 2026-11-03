@@ -156,6 +156,15 @@ def create_lkas12(packer, lkas12, mute_isla, suppress_daw=False):
   return packer.make_can_msg("LKAS12", 0, values)
 
 
+def create_cam_0x42d(packer, cam_0x42d, mute_isla):
+  values = dict(cam_0x42d)
+  if mute_isla:
+    # Clear dedicated ISLA speed-limit-change (bit 7) and overspeed (bit 6) audio chime triggers
+    values["ISLA_Overspeed_Chime"] = 0
+    values["ISLA_SpdChg_Chime"] = 0
+  return packer.make_can_msg("CAM_0x42d", 0, values)
+
+
 def create_acc_commands(packer, enabled, accel, upper_jerk, idx, lead_data: CanLeadData,
                         hud_control, set_speed, stopping, long_override, use_fca, CP,
                         main_cruise_enabled, tuning, ESCC: EnhancedSmartCruiseControl | None = None):

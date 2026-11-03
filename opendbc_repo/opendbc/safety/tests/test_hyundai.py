@@ -310,6 +310,21 @@ class TestHyundaiSafetyCameraSCCMuteISLA(TestHyundaiSafetyCameraSCC):
     self.SAFETY_PARAM_SP = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12
 
 
+class TestHyundaiSafetyCameraSCCMuteISLA42D(TestHyundaiSafetyCameraSCC):
+  TX_MSGS = [[0x340, 0], [0x4F1, 2], [0x485, 0], [0x53E, 0], [0x42D, 0]]
+  FWD_BLACKLISTED_ADDRS = {2: [0x340, 0x485, 0x53E, 0x42D]}
+  RELAY_MALFUNCTION_ADDRS = {0: (0x340, 0x485, 0x53E, 0x42D)}
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_generated")
+    self.safety = libsafety_py.libsafety
+    param_sp = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12 | HyundaiSafetyFlagsSP.MUTE_ISLA_42D
+    self.safety.set_current_safety_param_sp(param_sp)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.CAMERA_SCC)
+    self.safety.init_tests()
+    self.SAFETY_PARAM_SP = param_sp
+
+
 @parameterized_class(LDA_BUTTON)
 class TestHyundaiSafetyFCEV(TestHyundaiSafety):
   @classmethod
@@ -468,6 +483,20 @@ class TestHyundaiLongitudinalSafetyCameraSCCMuteISLA(TestHyundaiLongitudinalSafe
     self.packer = CANPackerSafety("hyundai_can_generated")
     self.safety = libsafety_py.libsafety
     self.safety.set_current_safety_param_sp(HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12)
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC)
+    self.safety.init_tests()
+
+
+class TestHyundaiLongitudinalSafetyCameraSCCMuteISLA42D(TestHyundaiLongitudinalSafetyCameraSCC):
+  TX_MSGS = [[0x340, 0], [0x4F1, 2], [0x485, 0], [0x420, 0], [0x421, 0], [0x50A, 0], [0x389, 0], [0x4A2, 0], [0x53E, 0], [0x42D, 0]]
+  FWD_BLACKLISTED_ADDRS = {2: [0x340, 0x485, 0x420, 0x421, 0x50A, 0x389, 0x53E, 0x42D]}
+  RELAY_MALFUNCTION_ADDRS = {0: (0x340, 0x485, 0x421, 0x420, 0x50A, 0x389, 0x53E, 0x42D)}
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_can_generated")
+    self.safety = libsafety_py.libsafety
+    param_sp = HyundaiSafetyFlagsSP.HAS_LDA_BUTTON | HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12 | HyundaiSafetyFlagsSP.MUTE_ISLA_42D
+    self.safety.set_current_safety_param_sp(param_sp)
     self.safety.set_safety_hooks(CarParams.SafetyModel.hyundai, HyundaiSafetyFlags.LONG | HyundaiSafetyFlags.CAMERA_SCC)
     self.safety.init_tests()
 

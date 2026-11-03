@@ -13,14 +13,19 @@ from opendbc.sunnypilot.car.hyundai.values import HyundaiFlagsSP, HyundaiSafetyF
 class TestHyundaiLkas12IslaDaw(unittest.TestCase):
   def setUp(self):
     self.packer = CANPacker("hyundai_can_generated")
-    self.cam_parser = CANParser("hyundai_can_generated", [("LKAS11", 100), ("LKAS12", float("nan"))], 2)
-    self.pt_parser = CANParser("hyundai_can_generated", [("LKAS11", 100), ("LKAS12", float("nan"))], 0)
+    self.cam_parser = CANParser("hyundai_can_generated", [("LKAS11", 100), ("LKAS12", float("nan")), ("CAM_0x42d", float("nan"))], 2)
+    self.pt_parser = CANParser("hyundai_can_generated", [("LKAS11", 100), ("LKAS12", float("nan")), ("CAM_0x42d", float("nan"))], 0)
 
-  def _parse_cam(self, lkas11_hex: str, lkas12_hex: str):
-    self.cam_parser.update([(1_000_000, [
+  def _parse_cam(self, lkas11_hex: str, lkas12_hex: str, cam_42d_hex: str | None = None):
+    frames = [
       (0x340, bytes.fromhex(lkas11_hex), 2),
       (0x53E, bytes.fromhex(lkas12_hex), 2),
-    ])])
+    ]
+    if cam_42d_hex is not None:
+      frames.append((0x42D, bytes.fromhex(cam_42d_hex), 2))
+    self.cam_parser.update([(1_000_000, frames)])
+    if cam_42d_hex is not None:
+      return dict(self.cam_parser.vl["LKAS11"]), dict(self.cam_parser.vl["LKAS12"]), dict(self.cam_parser.vl["CAM_0x42d"])
     return dict(self.cam_parser.vl["LKAS11"]), dict(self.cam_parser.vl["LKAS12"])
 
   def test_interface_sets_isla_and_daw_flags(self):
@@ -31,7 +36,18 @@ class TestHyundaiLkas12IslaDaw(unittest.TestCase):
     self.assertTrue(CP_SP.flags & HyundaiFlagsSP.HAS_LKAS12)
     self.assertTrue(CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12)
     self.assertTrue(CP_SP.flags & HyundaiFlagsSP.SUPPRESS_DAW_LKAS12)
+    self.assertFalse(CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_42D)
     self.assertTrue(CP_SP.safetyParam & HyundaiSafetyFlagsSP.MUTE_ISLA_LKAS12)
+    self.assertFalse(CP_SP.safetyParam & HyundaiSafetyFlagsSP.MUTE_ISLA_42D)
+
+    # With 8-byte 0x42D on Bus 2 (AU/EU CN7 PE ISLA audio chime message), MUTE_ISLA_42D is also set
+    fp_42d = gen_empty_fingerprint()
+    fp_42d[2][0x53E] = 8
+    fp_42d[2][0x42D] = 8
+    CP_42d = CarInterface.get_params(CAR.HYUNDAI_ELANTRA_HEV_2024, fp_42d, [], False, False, False)
+    CP_SP_42d = CarInterface._get_params_sp(CP_42d, structs.CarParamsSP(), CAR.HYUNDAI_ELANTRA_HEV_2024, fp_42d, [], False, False, False)
+    self.assertTrue(CP_SP_42d.flags & HyundaiFlagsSP.MUTE_ISLA_42D)
+    self.assertTrue(CP_SP_42d.safetyParam & HyundaiSafetyFlagsSP.MUTE_ISLA_42D)
 
     # 6-byte legacy LKAS12 should not set MUTE_ISLA_LKAS12 or SUPPRESS_DAW_LKAS12
     fp6 = gen_empty_fingerprint()
@@ -140,6 +156,77 @@ class TestHyundaiLkas12IslaDaw(unittest.TestCase):
     by_addr_clr = {addr: dat for addr, dat, _ in sends_cleared}
     self.assertFalse(CC_ctrl.daw_warn_latched)
     self.assertEqual(by_addr_clr[0x53E][5], 0x01)
+
+  def test_create_cam_0x42d_passthrough_and_mute(self):
+    # Real captured Elantra HEV 2024 0x42D speed-limit-change chime (0x80) and overspeed chime (0x40)
+    _, _, cam_spd_chg = self._parse_cam("fc0300246600f704", "0300323208053200", "800000004df0073e")
+    self.assertEqual(cam_spd_chg["ISLA_SpdChg_Chime"], 1)
+    self.assertEqual(cam_spd_chg["ISLA_Overspeed_Chime"], 0)
+
+    addr, dat_pass, bus = hyundaican.create_cam_0x42d(self.packer, cam_spd_chg, mute_isla=False)
+    self.assertEqual((addr, bus), (0x42D, 0))
+    self.assertEqual(dat_pass.hex(), "800000004df0073e")
+
+    _, dat_muted, _ = hyundaican.create_cam_0x42d(self.packer, cam_spd_chg, mute_isla=True)
+    self.assertEqual(dat_muted.hex(), "000000004df0073e")
+
+    _, _, cam_overspd = self._parse_cam("fc0300246600f704", "0300282808052830", "40000000b7df27af")
+    self.assertEqual(cam_overspd["ISLA_Overspeed_Chime"], 1)
+    self.assertEqual(cam_overspd["ISLA_SpdChg_Chime"], 0)
+    _, dat_overspd_pass, _ = hyundaican.create_cam_0x42d(self.packer, cam_overspd, mute_isla=False)
+    self.assertEqual(dat_overspd_pass.hex(), "40000000b7df27af")
+    _, dat_overspd_muted, _ = hyundaican.create_cam_0x42d(self.packer, cam_overspd, mute_isla=True)
+    self.assertEqual(dat_overspd_muted.hex(), "00000000b7df27af")
+
+    # Low 6 bits of byte 0 and bytes 1..7 are preserved verbatim when muting bits 6..7
+    _, _, cam_low_bits = self._parse_cam("fc0300246600f704", "0300282808052830", "ff11223344556677")
+    _, dat_low_muted, _ = hyundaican.create_cam_0x42d(self.packer, cam_low_bits, mute_isla=True)
+    self.assertEqual(dat_low_muted.hex(), "3f11223344556677")
+
+  def test_carcontroller_mutes_and_latches_0x42d_chimes(self):
+    fp = gen_empty_fingerprint()
+    fp[2][0x53E] = 8
+    fp[2][0x42D] = 8
+    CP = CarInterface.get_params(CAR.HYUNDAI_ELANTRA_HEV_2024, fp, [], False, False, False)
+    CP_SP = CarInterface._get_params_sp(CP, structs.CarParamsSP(), CAR.HYUNDAI_ELANTRA_HEV_2024, fp, [], False, False, False)
+    dbc_names = {Bus.pt: "hyundai_can_generated"}
+
+    CS = CarState(CP, CP_SP)
+    CC_ctrl = CarController(dbc_names, CP, CP_SP)
+    CS.lkas11, CS.lkas12, CS.cam_0x42d = self._parse_cam("fc0300246600f704", "0300282808052830", "40000000b7df27af")
+    CS.clu11 = {s: 0 for s in self.packer.dbc.name_to_msg["CLU11"].sigs}
+    CS.out = structs.CarState()
+
+    CC = structs.CarControl(enabled=False, latActive=False)
+    CC_SP = structs.CarControlSP()
+    CC_SP.mads.enabled = True
+
+    # Frame 0: MADS active during overspeed chime (0x40) -> 0x42D byte 0 muted to 0x00 and latched
+    CC_ctrl.frame = 0
+    _, sends = CC_ctrl.update(CC.as_reader(), CC_SP, CS, 0)
+    by_addr = {addr: dat for addr, dat, _ in sends}
+    self.assertEqual(by_addr[0x42D].hex(), "00000000b7df27af")
+    self.assertTrue(CC_ctrl.isla_chime_latched)
+
+    # Frame 10: Driver disengages MADS mid-pulse -> remaining overspeed pulse stays muted
+    CC_SP.mads.enabled = False
+    CC_ctrl.frame = 10
+    _, sends_dis = CC_ctrl.update(CC.as_reader(), CC_SP, CS, 100_000_000)
+    by_addr_dis = {addr: dat for addr, dat, _ in sends_dis}
+    self.assertEqual(by_addr_dis[0x42D].hex(), "00000000b7df27af")
+
+    # Frame 20: Camera finishes overspeed pulse (0x00) -> latch clears
+    CS.lkas11, CS.lkas12, CS.cam_0x42d = self._parse_cam("fc0300246600f704", "0300282808052830", "00000000c7bd079f")
+    CC_ctrl.frame = 20
+    CC_ctrl.update(CC.as_reader(), CC_SP, CS, 200_000_000)
+    self.assertFalse(CC_ctrl.isla_chime_latched)
+
+    # Frame 30: Manual driving speed-limit-change chime (0x80) -> passes through untouched
+    CS.lkas11, CS.lkas12, CS.cam_0x42d = self._parse_cam("fc0300246600f704", "0300323208053200", "8000000000d007fa")
+    CC_ctrl.frame = 30
+    _, sends_manual = CC_ctrl.update(CC.as_reader(), CC_SP, CS, 300_000_000)
+    by_addr_man = {addr: dat for addr, dat, _ in sends_manual}
+    self.assertEqual(by_addr_man[0x42D].hex(), "8000000000d007fa")
 
 
 if __name__ == "__main__":

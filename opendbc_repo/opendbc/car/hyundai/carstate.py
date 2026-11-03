@@ -65,6 +65,7 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
 
     self.cruise_info = {}
     self.lkas12 = {}
+    self.cam_0x42d = {}
 
     # On some cars, CLU15->CF_Clu_VehicleSpeed can oscillate faster than the dash updates. Sample at 5 Hz
     self.cluster_speed = 0
@@ -191,6 +192,9 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
     if (self.CP_SP.flags & (HyundaiFlagsSP.MUTE_ISLA_LKAS12 | HyundaiFlagsSP.SUPPRESS_DAW_LKAS12)) and \
        cp_cam.ts_nanos["LKAS12"]["CF_Lkas_TsrSpeed_Display_Clu"] != 0:
       self.lkas12 = copy.copy(cp_cam.vl["LKAS12"])
+    if (self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_42D) and \
+       cp_cam.ts_nanos["CAM_0x42d"]["ISLA_SpdChg_Chime"] != 0:
+      self.cam_0x42d = copy.copy(cp_cam.vl["CAM_0x42d"])
     self.steer_state = cp.vl["MDPS12"]["CF_Mdps_ToiActive"]  # 0 NOT ACTIVE, 1 ACTIVE
     prev_cruise_buttons = self.cruise_buttons[-1]
     prev_main_buttons = self.main_buttons[-1]
@@ -337,7 +341,11 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
       return self.get_can_parsers_canfd(CP)
 
     lkas12_intercept = CP_SP.flags & (HyundaiFlagsSP.MUTE_ISLA_LKAS12 | HyundaiFlagsSP.SUPPRESS_DAW_LKAS12)
-    cam_msgs = [("LKAS12", float("nan"))] if lkas12_intercept else []
+    cam_msgs = []
+    if lkas12_intercept:
+      cam_msgs.append(("LKAS12", float("nan")))
+    if CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_42D:
+      cam_msgs.append(("CAM_0x42d", float("nan")))
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 0),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_msgs, 2),

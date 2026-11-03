@@ -75,6 +75,7 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     self.last_button_frame = 0
     self.cancel_counter = 0
     self.daw_warn_latched = False
+    self.isla_chime_latched = False
 
   def update(self, CC, CC_SP, CS, now_nanos):
     EsccCarController.update(self, CS)
@@ -167,6 +168,14 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
 
     suppress_daw = bool((self.CP_SP.flags & HyundaiFlagsSP.SUPPRESS_DAW_LKAS12) and (comma_active or self.daw_warn_latched))
 
+    cam_isla_chime = bool(CS.cam_0x42d.get("ISLA_Overspeed_Chime", 0) != 0 or CS.cam_0x42d.get("ISLA_SpdChg_Chime", 0) != 0)
+    if comma_active and cam_isla_chime:
+      self.isla_chime_latched = True
+    elif not comma_active and not cam_isla_chime:
+      self.isla_chime_latched = False
+
+    mute_isla_active = bool(comma_active or self.isla_chime_latched)
+
     can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
                                               torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
                                               hud_control.leftLaneVisible, hud_control.rightLaneVisible,
@@ -198,11 +207,13 @@ class CarController(CarControllerBase, EsccCarController, LeadDataCarController,
     if self.frame % 5 == 0 and self.CP.flags & HyundaiFlags.SEND_LFA.value:
       can_sends.append(hyundaican.create_lfahda_mfc(self.packer, CC.enabled, self.lfa_icon))
 
-    # 10 Hz LKAS12 message (forward and mute ISLA chime / suppress DAW drops when MADS or cruise is active)
+    # 10 Hz LKAS12 and CAM_0x42d messages (forward and mute ISLA chimes / suppress DAW drops when MADS or cruise is active)
     lkas12_intercept = self.CP_SP.flags & (HyundaiFlagsSP.MUTE_ISLA_LKAS12 | HyundaiFlagsSP.SUPPRESS_DAW_LKAS12)
     if self.frame % 10 == 0 and lkas12_intercept and CS.lkas12:
-      mute_isla = bool((self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12) and comma_active)
+      mute_isla = bool((self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_LKAS12) and mute_isla_active)
       can_sends.append(hyundaican.create_lkas12(self.packer, CS.lkas12, mute_isla, suppress_daw))
+    if self.frame % 10 == 0 and (self.CP_SP.flags & HyundaiFlagsSP.MUTE_ISLA_42D) and CS.cam_0x42d:
+      can_sends.append(hyundaican.create_cam_0x42d(self.packer, CS.cam_0x42d, mute_isla_active))
 
     # 5 Hz ACC options
     if self.frame % 20 == 0 and self.CP.openpilotLongitudinalControl:
